@@ -1,11 +1,34 @@
-import { useContext } from 'react'
-
+import { useState, useRef, useCallback } from 'react'
+import debounce from 'lodash.debounce'
 import styles from './Search.module.scss'
+import { useDispatch } from 'react-redux'
 
-import { SearchContext } from '../../App'
+import { setSearchValue } from '../../redux/slices/filterSlice'
 
 function Search() {
-  const { searchValue, setSearchValue } = useContext(SearchContext)
+  const [value, setValue] = useState('')
+  const dispatch = useDispatch()
+
+  const inputRef = useRef()
+
+  const onClear = () => {
+  
+    dispatch(setSearchValue(''))
+    setValue('')
+    inputRef.current.focus()
+  }
+
+  // eslint-disable-next-line
+  const updateSearchValue = useCallback(
+    debounce(e => {
+      dispatch(setSearchValue(e.target.value))
+    }, 1000)
+  )
+
+  const onChangeValue = e => {
+    setValue(e.target.value)
+    updateSearchValue(e)
+  }
   return (
     <div className={styles.root}>
       <svg
@@ -21,15 +44,16 @@ function Search() {
         />
       </svg>
       <input
+        ref={inputRef}
         className={styles.input}
-        value={searchValue}
-        onChange={e => setSearchValue(e.target.value)}
+        value={value}
+        onChange={onChangeValue}
         placeholder='Поиск пиццы...'
       />
-      {searchValue && (
+      {value && (
         <svg
           className={styles.clear}
-          onClick={() => setSearchValue('')}
+          onClick={onClear}
           height='512px'
           id='Layer_1'
           version='1.1'

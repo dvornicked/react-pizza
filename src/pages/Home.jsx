@@ -1,55 +1,93 @@
-import { useState, useEffect, useContext } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import qs from 'qs'
 
 import Categories from '../components/Categories'
-import Sort from '../components/Sort'
+import Sort, { list } from '../components/Sort'
 import PizzaBlock from '../components/PizzaBlock'
 import Skeleton from '../components/PizzaBlock/Skeleton'
-import Pagination from '../components/Search/Pagination/Pagination'
-import { SearchContext } from '../App'
+import Pagination from '../components/Pagination/Pagination'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  setCategory,
+  setPageCount,
+  setFilters,
+} from '../redux/slices/filterSlice'
+import { fetchPizzas } from '../redux/slices/pizzasSlice'
 
 function Home() {
-  const [items, setItems] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [category, setCategory] = useState(0)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [sortType, setSortType] = useState({
-    name: 'популярности',
-    property: 'rating',
-  })
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const { category, sort, pageCount, searchValue } = useSelector(state => state.filter)
+  const { items, status } = useSelector(state => state.pizza)
+  const isSearch = useRef(false)
+  const isMounted = useRef(false)
+
+  const getPizzas = useCallback(async () => {
+    dispatch(fetchPizzas({pageCount, category, sort: sort.property}))
+  }, [category, pageCount, sort.property, dispatch])
 
   useEffect(() => {
-    setIsLoading(true)
-    fetch(
-      `https://62afa5f9b0a980a2ef428b6b.mockapi.io/items?page=${currentPage}&limit=4&category=${
-        category ? category : ''
-      }&sortBy=${sortType.property}`
-    )
-      .then(response => response.json())
-      .then(json => {
-        setItems(json)
-        setIsLoading(false)
-      })
-    window.scrollTo(0, 0)
-  }, [category, sortType.property, currentPage])
+    if (window.location.search) {
+      const params = qs.parse(window.location.search.substring(1))
+      const sort = list.find(item => item.property === params.sortProperty)
+      dispatch(setFilters({ ...params, sort }))
+      isSearch.current = true
+    }
+  }, [dispatch])
 
-  const { searchValue } = useContext(SearchContext)
-  
-  const pizzas = [items.filter(item => item.name.toLowerCase().includes(searchValue.toLowerCase())).map(item => <PizzaBlock key={item.id} {...item} /> )]
-  const pizzasSkeletons = [...new Array(6)].map((_, index) => <Skeleton key={index} /> )
+  useEffect(() => {
+    if (!isSearch.current) {
+      getPizzas()
+    }
+
+    isSearch.current = false
+
+    window.scrollTo(0, 0)
+  }, [getPizzas])
+
+  useEffect(() => {
+    if (isMounted.current) {
+      const queryString = qs.stringify({
+        sortProperty: sort.property,
+        category,
+        pageCount,
+      })
+
+      navigate(`?${queryString}`)
+    }
+    isMounted.current = true
+  }, [category, sort.property, pageCount, navigate])
+
+  const pizzas = [
+    items
+      .filter(item =>
+        item.name.toLowerCase().includes(searchValue.toLowerCase())
+      )
+      .map(item => <PizzaBlock key={item.id} {...item} />),
+  ]
+
+  const pizzasSkeletons = [...new Array(6)].map((_, index) => (
+    <Skeleton key={index} />
+  ))
 
   return (
     <>
       <div className='content__top'>
-        <Categories value={category} onClickCategory={setCategory} />
-        <Sort value={sortType} onClickSort={setSortType} />
+        <Categories
+          value={category}
+          onClickCategory={id => dispatch(setCategory(id))}
+        />
+        <Sort />
       </div>
       <h2 className='content__title'>Все пиццы</h2>
       <div className='content__items'>
-        {isLoading
-          ? pizzasSkeletons
-          : pizzas }
+        {status === 'loading' ? pizzasSkeletons : pizzas}
       </div>
-      <Pagination onChangePage={setCurrentPage} />
+      <Pagination
+        value={pageCount}
+        onChangePage={value => dispatch(setPageCount(value))}
+      />
     </>
   )
 }
