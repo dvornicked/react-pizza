@@ -7,31 +7,42 @@ import Sort, { list } from '../components/Sort'
 import PizzaBlock from '../components/PizzaBlock'
 import Skeleton from '../components/PizzaBlock/Skeleton'
 import Pagination from '../components/Pagination/Pagination'
-import { useDispatch, useSelector } from 'react-redux'
+import { useSelector } from 'react-redux'
 import {
   setCategory,
   setPageCount,
   setFilters,
+  filterSelect,
 } from '../redux/slices/filterSlice'
-import { fetchPizzas } from '../redux/slices/pizzasSlice'
-
+import { fetchPizzas, pizzaSelector } from '../redux/slices/pizzasSlice'
+import { useAppDispatch } from '../redux/store'
 function Home() {
   const navigate = useNavigate()
-  const dispatch = useDispatch()
-  const { category, sort, pageCount, searchValue } = useSelector(state => state.filter)
-  const { items, status } = useSelector(state => state.pizza)
+  const dispatch = useAppDispatch()
+  const { category, sort, pageCount, searchValue } = useSelector(filterSelect)
+
+  const { items, status } = useSelector(pizzaSelector)
   const isSearch = useRef(false)
   const isMounted = useRef(false)
 
   const getPizzas = useCallback(async () => {
-    dispatch(fetchPizzas({pageCount, category, sort: sort.property}))
+    dispatch(
+      // @ts-ignore
+      fetchPizzas({ pageCount, category, sort: sort.property })
+    )
   }, [category, pageCount, sort.property, dispatch])
 
   useEffect(() => {
     if (window.location.search) {
       const params = qs.parse(window.location.search.substring(1))
       const sort = list.find(item => item.property === params.sortProperty)
-      dispatch(setFilters({ ...params, sort }))
+      const filters = {
+        pageCount: Number(params.pageCount),
+        searchValue: String(params.searchValue),
+        category: Number(params.category),
+        sort: sort!
+      }
+      dispatch(setFilters(filters))
       isSearch.current = true
     }
   }, [dispatch])
@@ -61,10 +72,10 @@ function Home() {
 
   const pizzas = [
     items
-      .filter(item =>
+      .filter((item: any) =>
         item.name.toLowerCase().includes(searchValue.toLowerCase())
       )
-      .map(item => <PizzaBlock key={item.id} {...item} />),
+      .map((item: any) => <PizzaBlock key={item.id} {...item} />),
   ]
 
   const pizzasSkeletons = [...new Array(6)].map((_, index) => (
@@ -76,7 +87,8 @@ function Home() {
       <div className='content__top'>
         <Categories
           value={category}
-          onClickCategory={id => dispatch(setCategory(id))}
+          // eslint-disable-next-line
+          onClickCategory={useCallback((id: number) => dispatch(setCategory(id)), [])}
         />
         <Sort />
       </div>
@@ -86,7 +98,7 @@ function Home() {
       </div>
       <Pagination
         value={pageCount}
-        onChangePage={value => dispatch(setPageCount(value))}
+        onChangePage={(value: number) => dispatch(setPageCount(value))}
       />
     </>
   )

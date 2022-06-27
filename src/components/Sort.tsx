@@ -1,23 +1,33 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { setSort } from '../redux/slices/filterSlice'
+import { setSort, sortSelect } from '../redux/slices/filterSlice'
 
-export const list = [
+type SortItem = {
+  name: string
+  property: string
+}
+
+export const list: SortItem[] = [
   { name: 'популярности', property: 'rating' },
   { name: 'цене', property: 'price' },
   { name: 'алфавиту', property: 'name' },
 ]
 
-function Sort() {
+const Sort = memo(() => {
   const dispatch = useDispatch()
-  const value = useSelector(state => state.filter.sort)
-  const sortRef = useRef()
+  const value = useSelector(sortSelect)
+  const sortRef = useRef<HTMLDivElement>(null)
 
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const handleClickOutside = event => {
-      if (!event.path.includes(sortRef.current) && isVisible) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const _event = event as MouseEvent & { path: Node[] }
+      if (
+        sortRef.current &&
+        !_event.path.includes(sortRef.current) &&
+        isVisible
+      ) {
         setIsVisible(false)
       }
     }
@@ -61,6 +71,6 @@ function Sort() {
       )}
     </div>
   )
-}
+})
 
 export default Sort
